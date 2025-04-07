@@ -1,19 +1,25 @@
 from datetime import datetime, timedelta, timezone
+from typing import Any, Generator, Iterator
 
 import pytest
-from app import create_app
-from app.models import Client, ClientParking, Parking
-from config import Config
-from database import db as _db
+from flask import Flask
+from flask.testing import FlaskClient
+from flask_sqlalchemy import SQLAlchemy
+
+from project.app import create_app
+from project.app.models import Client, ClientParking, Parking
+from project.config import Config
+from project.database import db as _db
 
 
 @pytest.fixture(scope="module")
-def app():
-    test_config = Config()
-    test_config.SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
-    test_config.TESTING = True
-    test_config.WTF_CSRF_ENABLED = False
+def app() -> Generator[Flask, Any, None]:
+    class TestConfig(Config):
+        TESTING = True
+        WTF_CSRF_ENABLED = False
+        SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
 
+    test_config = TestConfig()
     app = create_app(test_config)
 
     with app.app_context():
@@ -57,12 +63,12 @@ def app():
 
 
 @pytest.fixture(scope="module")
-def client(app):
+def client(app: Flask) -> FlaskClient:
     return app.test_client()
 
 
 @pytest.fixture(scope="function")
-def db(app):
+def db(app: Flask) -> Iterator[SQLAlchemy]:
     with app.app_context():
         _db.session.begin_nested()
         yield _db

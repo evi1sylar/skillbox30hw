@@ -1,8 +1,7 @@
 import os
 from pathlib import Path
 
-from app import create_app
-from config import Config
+from project.app import create_app
 
 db_dir = Path(__file__).parent / "database"
 try:

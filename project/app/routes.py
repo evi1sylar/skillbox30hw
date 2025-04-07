@@ -1,11 +1,10 @@
 import re
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import List, Tuple, Union, cast
 
-from app.models import Client, ClientParking, Parking
-from config import Config
-from database import db
 from flask import (
     Blueprint,
+    Response,
     flash,
     jsonify,
     redirect,
@@ -14,18 +13,23 @@ from flask import (
     session,
     url_for,
 )
-from sqlalchemy import text
+from werkzeug.wrappers import Response as WerkzeugResponse
+
+from project.app.models import Client, ClientParking, Parking
+from project.config import Config
+from project.database import db
 
 bp = Blueprint("views", __name__)
+ResponseType = Union[Response, WerkzeugResponse, str]
 
 
-def validate_car_number(car_number):
+def validate_car_number(car_number: str) -> bool:
     pattern = r"^[АВЕКМНОРСТУХABEKMHOPCTYX]\d{3}[АВЕКМНОРСТУХABEKMHOPCTYX]{2}\d{2,3}$"
     return re.match(pattern, car_number.upper()) is not None
 
 
 @bp.route("/")
-def index():
+def index() -> str:
     parkings_count = Parking.query.count()
     active_sessions_count = ClientParking.query.filter_by(time_out=None).count()
     return render_template(
@@ -36,19 +40,19 @@ def index():
 
 
 @bp.route("/clients")
-def list_clients():
+def list_clients() -> str:
     clients = Client.query.all()
     return render_template("clients/list.html", clients=clients)
 
 
 @bp.route("/clients/<int:client_id>")
-def view_client(client_id):
+def view_client(client_id: int) -> str:
     client = Client.query.get_or_404(client_id)
     return render_template("clients/view.html", client=client)
 
 
 @bp.route("/clients/new", methods=["GET", "POST"])
-def create_client():
+def create_client() -> Union[ResponseType, str]:
     if request.method == "POST":
         try:
             name = request.form["name"].strip()
@@ -84,25 +88,24 @@ def create_client():
 
 
 @bp.route("/parkings")
-def list_parkings():
+def list_parkings() -> str:
     parkings = Parking.query.all()
     return render_template("parkings/list.html", parkings=parkings)
 
 
 @bp.route("/parkings/new", methods=["GET", "POST"])
-def create_parking():
+def create_parking() -> Union[ResponseType, str]:
     if request.method == "POST":
         try:
             address = request.form["address"].strip()
-            count_places = request.form["count_places"].strip()
+            count_places_str = request.form["count_places"].strip()
 
-            # Валидация
             if not address:
                 flash("Адрес обязателен для заполнения", "danger")
                 return render_template("parkings/new.html")
 
             try:
-                count_places = int(count_places)
+                count_places = int(count_places_str)
                 if count_places <= 0:
                     raise ValueError
             except ValueError:
@@ -127,11 +130,11 @@ def create_parking():
 
 
 @bp.route("/client_parkings/enter", methods=["GET", "POST"])
-def enter_parking():
+def enter_parking() -> Union[ResponseType, str]:
     if request.method == "POST":
         try:
-            client_id = request.form["client_id"]
-            parking_id = request.form["parking_id"]
+            client_id = int(request.form["client_id"])
+            parking_id = int(request.form["parking_id"])
 
             if ClientParking.query.filter_by(
                 client_id=client_id, time_out=None
@@ -139,7 +142,6 @@ def enter_parking():
                 flash("Этот клиент уже находится на парковке", "danger")
                 return redirect(url_for("views.enter_parking"))
 
-            client = Client.query.get_or_404(client_id)
             parking = Parking.query.get_or_404(parking_id)
 
             if not parking.opened:
@@ -151,7 +153,9 @@ def enter_parking():
                 return redirect(url_for("views.enter_parking"))
 
             log = ClientParking(
-                client_id=client_id, parking_id=parking_id, time_in=datetime.utcnow()
+                client_id=client_id,
+                parking_id=parking_id,
+                time_in=datetime.now(timezone.utc),
             )
             parking.count_available_places -= 1
 
@@ -159,7 +163,16 @@ def enter_parking():
             db.session.commit()
 
             flash("Автомобиль успешно припаркован", "success")
-            return redirect(url_for("views.list_active_sessions"))
+            active_ids = [
+                s.client_id for s in ClientParking.query.filter_by(time_out=None).all()
+            ]
+            return render_template(
+                "client_parkings/enter.html",
+                clients=Client.query.filter(~Client.id.in_(active_ids)).all(),
+                parkings=Parking.query.filter(
+                    Parking.opened.is_(True), Parking.count_available_places > 0
+                ).all(),
+            )
 
         except Exception as e:
             db.session.rollback()
@@ -171,7 +184,7 @@ def enter_parking():
     ]
     available_clients = Client.query.filter(~Client.id.in_(active_client_ids)).all()
     available_parkings = Parking.query.filter(
-        Parking.opened == True, Parking.count_available_places > 0
+        Parking.opened.is_(True), Parking.count_available_places > 0
     ).all()
 
     return render_template(
@@ -181,18 +194,19 @@ def enter_parking():
     )
 
 
-def get_active_sessions():
-    return (
+def get_active_sessions() -> List[ClientParking]:
+    sessions = (
         ClientParking.query.filter_by(time_out=None)
         .options(
             db.joinedload(ClientParking.client), db.joinedload(ClientParking.parking)
         )
         .all()
     )
+    return cast(List[ClientParking], sessions)
 
 
 @bp.route("/api/client_parkings/exit", methods=["DELETE"])
-def process_exit():
+def process_exit() -> Union[Response, Tuple[Response, int]]:
     try:
         data = request.get_json()
         if not data or "client_id" not in data or "parking_id" not in data:
@@ -226,7 +240,7 @@ def process_exit():
                 200,
             )
 
-        parking_session.time_out = datetime.utcnow()
+        parking_session.time_out = datetime.now(timezone.utc)
         parking_session.parking.count_available_places += 1
         db.session.commit()
 
@@ -245,7 +259,7 @@ def process_exit():
 
 
 @bp.route("/client_parkings/exit", methods=["GET"])
-def exit_parking():
+def exit_parking() -> str:
     if "_flashes" in session:
         session.pop("_flashes")
 
@@ -268,7 +282,7 @@ def exit_parking():
 
 
 @bp.route("/client_parkings/active")
-def list_active_sessions():
+def list_active_sessions() -> str:
     active_sessions = (
         ClientParking.query.filter_by(time_out=None)
         .options(

@@ -1,40 +1,52 @@
-from database import db
+from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from project.database import db
 
 
-class Client(db.Model):
+class Client(db.Model):  # type: ignore[name-defined]
     __tablename__ = "client"
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    surname = db.Column(db.String(50), nullable=False)
-    credit_card = db.Column(db.String(50))
-    car_number = db.Column(db.String(10))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    surname: Mapped[str] = mapped_column(String(50), nullable=False)
+    credit_card: Mapped[Optional[str]] = mapped_column(String(50))
+    car_number: Mapped[str] = mapped_column(String(10))
 
-    parking_sessions = db.relationship("ClientParking", back_populates="client")
+    parking_sessions: Mapped[list["ClientParking"]] = relationship(
+        "ClientParking", back_populates="client"
+    )
 
 
-class Parking(db.Model):
+class Parking(db.Model):  # type: ignore[name-defined]
     __tablename__ = "parking"
 
-    id = db.Column(db.Integer, primary_key=True)
-    address = db.Column(db.String(100), nullable=False)
-    opened = db.Column(db.Boolean)
-    count_places = db.Column(db.Integer, nullable=False)
-    count_available_places = db.Column(db.Integer, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    address: Mapped[str] = mapped_column(String(100), nullable=False)
+    opened: Mapped[bool] = mapped_column(Boolean)
+    count_places: Mapped[int] = mapped_column(Integer, nullable=False)
+    count_available_places: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    parking_sessions = db.relationship("ClientParking", back_populates="parking")
+    parking_sessions: Mapped[list["ClientParking"]] = relationship(
+        "ClientParking", back_populates="parking"
+    )
 
 
-class ClientParking(db.Model):
+class ClientParking(db.Model):  # type: ignore[name-defined]
     __tablename__ = "client_parking"
 
-    id = db.Column(db.Integer, primary_key=True)
-    client_id = db.Column(db.Integer, db.ForeignKey("client.id"))
-    parking_id = db.Column(db.Integer, db.ForeignKey("parking.id"))
-    time_in = db.Column(db.DateTime, nullable=False)
-    time_out = db.Column(db.DateTime)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client.id"))
+    parking_id: Mapped[int] = mapped_column(ForeignKey("parking.id"))
+    time_in: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    time_out: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
-    client = db.relationship("Client", back_populates="parking_sessions")
-    parking = db.relationship("Parking", back_populates="parking_sessions")
+    client: Mapped["Client"] = relationship("Client", back_populates="parking_sessions")
+    parking: Mapped["Parking"] = relationship(
+        "Parking", back_populates="parking_sessions"
+    )
 
     __table_args__ = ()

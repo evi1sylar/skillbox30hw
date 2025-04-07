@@ -1,15 +1,21 @@
-from app.routes import bp
-from config import Config
-from database import init_db
+from datetime import datetime
+from typing import Any, Optional
+
 from flask import Flask
 
+from project.app.routes import bp
+from project.config import Config
+from project.database import init_db
 
-def create_app(config_class=Config):
+
+def create_app(config_class: Any = Config) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_class)
 
     @app.template_filter("datetimeformat")
-    def datetimeformat(value, format="%d.%m.%Y %H:%M"):
+    def datetimeformat(
+        value: Optional[datetime], format: str = "%d.%m.%Y %H:%M"
+    ) -> str:
         if value is None:
             return ""
         return value.strftime(format)

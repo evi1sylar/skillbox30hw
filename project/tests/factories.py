@@ -1,7 +1,8 @@
 import factory
-from app.models import Client, Parking
-from database import db as _db
-from factory.fuzzy import FuzzyChoice, FuzzyInteger, FuzzyText
+from factory.fuzzy import FuzzyInteger
+
+from project.app.models import Client, Parking
+from project.database import db as _db
 
 
 class ClientFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -11,7 +12,7 @@ class ClientFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     name = factory.Faker("first_name")
     surname = factory.Faker("last_name")
-    car_number = factory.Sequence(lambda n: f"А{n:03}BC{10+n:02}")  # Пример: А001BC11
+    car_number = factory.Sequence(lambda n: f"А{n:03}BC{10 + n:02}")  # Пример: А001BC11
     credit_card = factory.LazyAttribute(
         lambda x: (
             None

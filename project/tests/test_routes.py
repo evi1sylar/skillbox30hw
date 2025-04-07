@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
 
 import pytest
-from app.models import Client, ClientParking, Parking
-from tests.factories import ClientFactory, ParkingFactory
+from flask.testing import FlaskClient
+from flask_sqlalchemy import SQLAlchemy
+
+from project.app.models import Client, ClientParking, Parking
+from project.tests.factories import ClientFactory, ParkingFactory
 
 
 @pytest.mark.parametrize(
@@ -16,12 +19,12 @@ from tests.factories import ClientFactory, ParkingFactory
         ("/client_parkings/exit", 200),
     ],
 )
-def test_get_routes(client, route, expected):
+def test_get_routes(client: FlaskClient, route: str, expected: int) -> None:
     response = client.get(route)
     assert response.status_code == expected
 
 
-def test_create_client(client, db):
+def test_create_client(client: FlaskClient, db: SQLAlchemy) -> None:
     test_car_number = "A123BC123"
 
     data = {
@@ -49,7 +52,7 @@ def test_create_client(client, db):
     assert "Клиент успешно создан" in response.data.decode("utf-8")
 
 
-def test_create_parking(client, db):
+def test_create_parking(client: FlaskClient, db: SQLAlchemy) -> None:
     data = {"address": "New Parking Address", "count_places": "5", "opened": "on"}
     response = client.post("/parkings/new", data=data, follow_redirects=True)
     assert response.status_code == 200
@@ -61,7 +64,7 @@ def test_create_parking(client, db):
 
 
 @pytest.mark.parking
-def test_enter_parking(client, db):
+def test_enter_parking(client: FlaskClient, db: SQLAlchemy) -> None:
     new_client = Client(name="Parking", surname="Test", car_number="B456DF456")
     db.session.add(new_client)
     db.session.commit()
@@ -80,7 +83,7 @@ def test_enter_parking(client, db):
 
 
 @pytest.mark.parking
-def test_exit_parking(client, db):
+def test_exit_parking(client: FlaskClient, db: SQLAlchemy) -> None:
     active_session = ClientParking.query.filter_by(time_out=None).first()
     assert active_session is not None
 
@@ -103,7 +106,7 @@ def test_exit_parking(client, db):
 
 
 @pytest.mark.parking
-def test_exit_parking_no_card(client, db):
+def test_exit_parking_no_card(client: FlaskClient, db: SQLAlchemy) -> None:
     no_card_client = Client(name="NoCard", surname="Client", car_number="C789GH789")
     db.session.add(no_card_client)
     db.session.commit()
@@ -121,7 +124,6 @@ def test_exit_parking_no_card(client, db):
             if rule.endpoint == "views.process_exit"
         ]
         assert rules, "Маршрут не найден"
-        print(f"Доступные маршруты: {[rule.rule for rule in rules]}")
 
     response = client.delete(
         "/api/client_parkings/exit",
@@ -132,7 +134,7 @@ def test_exit_parking_no_card(client, db):
     assert response.status_code == 200
 
 
-def test_enter_closed_parking(client, db):
+def test_enter_closed_parking(client: FlaskClient, db: SQLAlchemy) -> None:
     parking = Parking.query.get(1)
     parking.opened = False
     db.session.commit()
@@ -143,7 +145,7 @@ def test_enter_closed_parking(client, db):
     assert "Парковка закрыта" in response.get_data(as_text=True)
 
 
-def test_enter_full_parking(client, db):
+def test_enter_full_parking(client: FlaskClient, db: SQLAlchemy) -> None:
     parking = Parking.query.get(1)
     parking.count_available_places = 0
     parking.opened = True
@@ -154,38 +156,38 @@ def test_enter_full_parking(client, db):
     assert response.status_code == 200
     assert "Нет свободных мест" in response.get_data(as_text=True)
 
-    @pytest.mark.parking
-    def test_double_enter_parking(client, db):
-        new_client = Client(name="Double", surname="Enter", car_number="D111DD111")
-        db.session.add(new_client)
-        db.session.commit()
 
-        data = {"client_id": new_client.id, "parking_id": 1}
-        response = client.post(
-            "/client_parkings/enter", data=data, follow_redirects=True
-        )
-        assert response.status_code == 200
-        assert "Автомобиль успешно припаркован" in response.get_data(as_text=True)
+@pytest.mark.parking
+def test_double_enter_parking(client: FlaskClient, db: SQLAlchemy) -> None:
+    parking = Parking(
+        address="Test", opened=True, count_places=10, count_available_places=10
+    )
+    db.session.add(parking)
+    new_client = Client(name="Double", surname="Enter", car_number="D111DD111")
+    db.session.add(new_client)
+    db.session.commit()
 
-        response = client.post(
-            "/client_parkings/enter", data=data, follow_redirects=True
-        )
-        assert response.status_code == 200
-        assert "Этот клиент уже находится на парковке" in response.get_data(
-            as_text=True
-        )
+    data = {"client_id": new_client.id, "parking_id": parking.id}
 
-        parking = Parking.query.get(1)
-        assert parking.count_available_places == 9
+    response = client.post("/client_parkings/enter", data=data, follow_redirects=True)
+    assert response.status_code == 200
+    response_text = response.get_data(as_text=True)
+    assert "Автомобиль успешно припаркован" in response_text
+
+    updated_parking = Parking.query.get(parking.id)
+    assert updated_parking.count_available_places == 9
+
+    response = client.post("/client_parkings/enter", data=data, follow_redirects=True)
+    assert response.status_code == 200
+    assert "Этот клиент уже находится на парковке" in response.get_data(as_text=True)
 
 
-def test_create_client_with_factory(client, db):
-    # Генерируем тестовые данные
+def test_create_client_with_factory(client: FlaskClient, db: SQLAlchemy) -> None:
     test_client = ClientFactory.build()
     client_data = {
         "name": test_client.name,
         "surname": test_client.surname,
-        "car_number": "А123BC123",  # Явно задаем валидный номер
+        "car_number": "А123BC123",
         "credit_card": test_client.credit_card if test_client.credit_card else "",
     }
 
@@ -198,19 +200,16 @@ def test_create_client_with_factory(client, db):
 
     assert response.status_code == 200
 
-    # Проверяем наличие сообщения об успехе
     response_text = response.data.decode("utf-8")
     assert "Клиент успешно создан" in response_text
 
-    # Проверяем создание клиента в БД
     new_client = Client.query.filter_by(car_number=client_data["car_number"]).first()
     assert new_client is not None
     assert new_client.name == client_data["name"]
     assert new_client.surname == client_data["surname"]
 
 
-def test_create_parking_with_factory(client, db):
-
+def test_create_parking_with_factory(client: FlaskClient, db: SQLAlchemy) -> None:
     initial_count = Parking.query.count()
 
     test_parking = ParkingFactory.build(opened=True)
