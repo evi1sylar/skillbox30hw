@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Выезд с парковки{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Выезд с парковки</h2>
+
+  <div id="errorAlert" class="alert alert-danger" style="display:none;"></div>
+  <div id="successAlert" class="alert alert-success" style="display:none;"></div>
+
+  <!-- Основная форма выезда -->
+  <div id="exitForm" class="card">
+    <div class="card-body">
+      <div class="form-group">
+        <label for="sessionSelect">Выберите автомобиль:</label>
+        <select class="form-control" id="sessionSelect">
+          <option value="">-- Выберите клиента --</option>
+          {% for session in active_sessions %}
+          <option
+            value="{{ session.client_id }},{{ session.parking_id }}"
+            data-client-name="{{ session.client.name }}"
+            data-car-number="{{ session.client.car_number }}"
+          >
+            {{ session.client.name }} ({{ session.client.car_number }}) -
+            {{ session.parking.address }} (заехал: {{ session.time_in|datetimeformat }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary mt-3" onclick="processExit()">Подтвердить выезд</button>
+    </div>
+  </div>
+
+  <!-- Форма для ввода кредитной карты (изначально скрыта) -->
+  <div id="creditCardForm" class="card mt-3" style="display:none;">
+    <div class="card-body">
+      <h5>Требуется кредитная карта</h5>
+      <p>Для клиента: <strong id="clientName"></strong></p>
+      <p>Автомобиль: <strong id="carNumber"></strong></p>
+
+      <div class="form-group">
+        <label>Номер кредитной карты:</label>
+        <input type="text" id="creditCardInput" class="form-control" required>
+      </div>
+
+      <button class="btn btn-primary" onclick="submitWithCreditCard()">Подтвердить оплату</button>
+      <button class="btn btn-secondary ml-2" onclick="cancelCreditCard()">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showError(message) {
+  const alert = document.getElementById('errorAlert');
+  alert.textContent = message;
+  alert.style.display = 'block';
+  setTimeout(() => alert.style.display = 'none', 5000);
+}
+
+function showSuccess(message) {
+  const alert = document.getElementById('successAlert');
+  alert.textContent = message;
+  alert.style.display = 'block';
+  setTimeout(() => alert.style.display = 'none', 5000);
+}
+
+function processExit() {
+  const selectedOption = document.getElementById('sessionSelect');
+  const selectedValue = selectedOption.value;
+
+  if (!selectedValue) {
+    showError('Выберите клиента покидающего парковку');
+    return;
+  }
+
+  const [clientId, parkingId] = selectedValue.split(',');
+  const clientName = selectedOption.options[selectedOption.selectedIndex].dataset.clientName;
+  const carNumber = selectedOption.options[selectedOption.selectedIndex].dataset.carNumber;
+
+  fetch('/api/client_parkings/exit', {
+    method: 'DELETE',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      client_id: clientId,
+      parking_id: parkingId
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      showError(data.error);
+    } else if (data.require_credit_card) {
+      // Показываем форму для ввода карты
+      document.getElementById('clientName').textContent = clientName;
+      document.getElementById('carNumber').textContent = carNumber;
+      document.getElementById('creditCardInput').value = '';
+      document.getElementById('creditCardForm').dataset.clientId = clientId;
+      document.getElementById('creditCardForm').dataset.parkingId = parkingId;
+
+      document.getElementById('exitForm').style.display = 'none';
+      document.getElementById('creditCardForm').style.display = 'block';
+    } else if (data.success) {
+      showSuccess(data.success);
+      setTimeout(() => window.location.reload(), 2000);
+    }
+  })
+  .catch(error => showError('Ошибка при обработке запроса'));
+}
+
+function submitWithCreditCard() {
+  const creditCardForm = document.getElementById('creditCardForm');
+  const clientId = creditCardForm.dataset.clientId;
+  const parkingId = creditCardForm.dataset.parkingId;
+  const creditCard = document.getElementById('creditCardInput').value.trim();
+
+  if (!creditCard) {
+    showError('Пожалуйста, введите номер кредитной карты');
+    return;
+  }
+
+  fetch('/api/client_parkings/exit', {
+    method: 'DELETE',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      client_id: clientId,
+      parking_id: parkingId,
+      credit_card: creditCard
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      showError(data.error);
+    } else if (data.success) {
+      showSuccess(data.success);
+      setTimeout(() => window.location.reload(), 2000);
+    }
+  })
+  .catch(error => showError('Ошибка при обработке платежа'));
+}
+
+function cancelCreditCard() {
+  document.getElementById('exitForm').style.display = 'block';
+  document.getElementById('creditCardForm').style.display = 'none';
+}
+</script>
+{% endblock %}

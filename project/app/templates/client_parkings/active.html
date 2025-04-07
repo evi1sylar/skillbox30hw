@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Активные парковочные сессии{% endblock %}
+
+{% block content %}
+<h2>Активные парковочные сессии</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Клиент</th>
+            <th>Автомобиль</th>
+            <th>Парковка</th>
+            <th>Время заезда</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for session in active_sessions %}
+        <tr>
+            <td>{{ session.client.name }} {{ session.client.surname }}</td>
+            <td>{{ session.client.car_number }}</td>
+            <td>{{ session.parking.address }}</td>
+            <td>{{ session.time_in.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="4">Нет активных парковочных сессий</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

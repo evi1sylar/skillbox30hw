@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Главная страница{% endblock %}
+
+{% block content %}
+<h1>Добро пожаловать в парковочный сервис!</h1>
+
+<div>
+    <p>Используйте меню навигации для работы с системой:</p>
+    <ul>
+        <li><a href="{{ url_for('views.list_clients') }}">Управление клиентами</a></li>
+        <li><a href="{{ url_for('views.list_parkings') }}">Управление парковками</a></li>
+        <li><a href="{{ url_for('views.enter_parking') }}">Регистрация заезда</a></li>
+        <li><a href="{{ url_for('views.exit_parking') }}">Регистрация выезда</a></li>
+    </ul>
+</div>
+{% endblock %}

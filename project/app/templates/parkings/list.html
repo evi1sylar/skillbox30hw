@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Список парковок{% endblock %}
+
+{% block content %}
+<h2>Список парковок</h2>
+<a href="{{ url_for('views.create_parking') }}">Добавить парковку</a>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Адрес</th>
+            <th>Статус</th>
+            <th>Места</th>
+            <th>Свободно</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for parking in parkings %}
+        <tr>
+            <td>{{ parking.id }}</td>
+            <td>{{ parking.address }}</td>
+            <td>{% if parking.opened %}Открыта{% else %}Закрыта{% endif %}</td>
+            <td>{{ parking.count_places }}</td>
+            <td>{{ parking.count_available_places }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

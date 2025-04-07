@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Парковочный сервис - {% block title %}{% endblock %}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        nav { margin-bottom: 20px; }
+        nav a { margin-right: 15px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .alert { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
+        .success { background-color: #dff0d8; color: #3c763d; }
+        .danger { background-color: #f2dede; color: #a94442; }
+        form { margin-top: 20px; }
+        input, select { margin-bottom: 10px; padding: 5px; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="{{ url_for('views.list_clients') }}">Клиенты</a>
+        <a href="{{ url_for('views.list_parkings') }}">Парковки</a>
+        <a href="{{ url_for('views.enter_parking') }}">Заезд</a>
+        <a href="{{ url_for('views.exit_parking') }}">Выезд</a>
+    </nav>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</body>
+</html>

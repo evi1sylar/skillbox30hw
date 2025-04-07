@@ -1,0 +1,13 @@
+factory_boy==3.3.3
+Flask==3.1.0
+flask_sqlalchemy==3.1.1
+pytest==8.3.5
+SQLAlchemy==2.0.40
+fastapi==0.115.12
+uvicorn==0.34.0
+flake8==7.2.0
+black==25.1.0
+isort==6.0.1
+mypy==1.15.0
+pylint==3.3.6
+httpx==1.0.0b0

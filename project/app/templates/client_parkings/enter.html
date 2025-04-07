@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Заезд на парковку{% endblock %}
+
+{% block content %}
+<h2>Заезд на парковку</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="messages">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+{% if not clients %}
+  <div class="alert alert-warning">
+    Нет доступных клиентов для парковки (все клиенты уже на парковке)
+  </div>
+{% endif %}
+
+{% if not parkings %}
+  <div class="alert alert-warning">
+    Нет доступных парковок (все закрыты или заполнены)
+  </div>
+{% endif %}
+
+{% if clients and parkings %}
+<form method="POST" action="{{ url_for('views.enter_parking') }}">
+  <div class="form-group">
+    <label for="client_id">Клиент:</label>
+    <select class="form-control" id="client_id" name="client_id" required>
+      <option value="">Выберите клиента</option>
+      {% for client in clients %}
+        <option value="{{ client.id }}">
+          {{ client.name }} {{ client.surname }} ({{ client.car_number }})
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="parking_id">Парковка:</label>
+    <select class="form-control" id="parking_id" name="parking_id" required>
+      <option value="">Выберите парковку</option>
+      {% for parking in parkings %}
+        <option value="{{ parking.id }}">
+          {{ parking.address }} (Свободно: {{ parking.count_available_places }}/{{ parking.count_places }})
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Зарегистрировать заезд</button>
+  <a href="{{ url_for('views.list_active_sessions') }}" class="btn btn-secondary">
+    Активные парковки
+  </a>
+</form>
+{% endif %}
+
+<style>
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  select, button {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .alert {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+  }
+  .alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+  .alert-success {
+    background-color: #d4edda;
+    color: #155724;
+  }
+  .btn {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background-color: #007bff;
+    color: white;
+    border: 1px solid #007bff;
+  }
+  .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+    border: 1px solid #6c757d;
+  }
+</style>
+{% endblock %}

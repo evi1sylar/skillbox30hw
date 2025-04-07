@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Клиент {{ client.name }} {{ client.surname }}{% endblock %}
+
+{% block content %}
+<h2>{{ client.name }} {{ client.surname }}</h2>
+
+<div>
+    <p><strong>Номер автомобиля:</strong> {{ client.car_number }}</p>
+    <p><strong>Кредитная карта:</strong> {{ client.credit_card or 'Не указана' }}</p>
+</div>
+
+<a href="{{ url_for('views.list_clients') }}">Назад к списку</a>
+{% endblock %}
